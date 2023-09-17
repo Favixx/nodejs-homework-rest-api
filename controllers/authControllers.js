@@ -5,6 +5,7 @@ const config = require("../config");
 const Jimp = require("jimp");
 const path = require("path");
 const fs = require("fs/promises");
+const gravatar = require("gravatar");
 
 const registerUser = async (req, res) => {
   try {
@@ -17,6 +18,7 @@ const registerUser = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const avatarURL = gravatar.url(email);
 
     const newUser = new User({ email, password: hashedPassword });
     await newUser.save();
@@ -25,6 +27,7 @@ const registerUser = async (req, res) => {
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatarURL,
       },
     });
   } catch (error) {
