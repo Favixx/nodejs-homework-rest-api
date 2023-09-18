@@ -8,18 +8,17 @@ const {
   logoutUser,
   getCurrentUser,
   setUserAvatar,
+  verifyUser,
+  resendVerification,
 } = require("../../controllers/authControllers");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.get("/verify/:verificationToken", verifyUser);
+router.post("/verify", resendVerification);
 router.use(authMiddleware);
 router.get("/logout", logoutUser);
 router.get("/current", getCurrentUser);
-router.patch(
-  "/avatars",
-  authMiddleware,
-  upload.single("avatar"),
-  setUserAvatar
-);
+router.patch("/avatars", upload.single("avatar"), setUserAvatar);
 
 module.exports = router;
