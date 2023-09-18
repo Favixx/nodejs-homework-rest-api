@@ -147,15 +147,22 @@ const setUserAvatar = async (req, res) => {
 const verifyUser = async (req, res) => {
   try {
     const { verificationToken } = req.params;
+    console.log(verificationToken);
 
     const user = await User.findOne({ verificationToken });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    user.verificationToken = null;
-    user.verify = true;
-    await user.save();
+    if (user.verify) {
+      return res
+        .status(400)
+        .json({ message: "Verification has already been passed" });
+    }
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationCode: "",
+    });
 
     return res.status(200).json({ message: "Verification successful" });
   } catch (error) {
@@ -179,7 +186,7 @@ const resendVerification = async (req, res) => {
         .json({ message: "Verification has already been passed" });
     }
     const mailOptions = {
-      from: "bdomanskyi@gmail.com",
+      from: "webnezha@mata.ua",
       to: email,
       subject: "Повторна відправка email для верифікації",
       text: `Перейдіть за посиланням для верифікації email: /users/verify/${user.verificationToken}`,
