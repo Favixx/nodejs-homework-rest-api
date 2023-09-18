@@ -6,10 +6,14 @@ const Jimp = require("jimp");
 const path = require("path");
 const fs = require("fs/promises");
 const gravatar = require("gravatar");
+const transporter = require("../nodemailerConfig");
+const { v4: uuidv4 } = require("uuid");
 
 const registerUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    const verificationToken = uuidv4();
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -20,7 +24,20 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     const avatarURL = gravatar.url(email);
 
-    const newUser = new User({ email, password: hashedPassword });
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      verificationToken,
+    });
+
+    const mailOptions = {
+      from: "webnezha@meta.ua", //  Для тестування замініть на свій мейл
+      to: email,
+      subject: "Підтвердження email",
+      text: `Перейдіть за посиланням для верифікації email: /users/verify/${verificationToken}`,
+    };
+
+    await transporter.sendMail(mailOptions);
     await newUser.save();
 
     res.status(201).json({
@@ -127,10 +144,62 @@ const setUserAvatar = async (req, res) => {
   }
 };
 
+const verifyUser = async (req, res) => {
+  try {
+    const { verificationToken } = req.params;
+
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user.verificationToken = null;
+    user.verify = true;
+    await user.save();
+
+    return res.status(200).json({ message: "Verification successful" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.verify) {
+      return res
+        .status(400)
+        .json({ message: "Verification has already been passed" });
+    }
+    const mailOptions = {
+      from: "bdomanskyi@gmail.com",
+      to: email,
+      subject: "Повторна відправка email для верифікації",
+      text: `Перейдіть за посиланням для верифікації email: /users/verify/${user.verificationToken}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ message: "Verification email sent" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
   getCurrentUser,
   setUserAvatar,
+  verifyUser,
+  resendVerification,
 };
